@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "KarnaSetu",
+    "slug": "karnasetu",
+    "scheme": "karnasetu",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.karnasetu.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "KarnaSetu uses your photo library to attach images to posts and NGO registration documents.",
+        "NSLocationWhenInUseUsageDescription": "KarnaSetu uses your location to show nearby NGOs and shelters."
+      }
+    },
+    "android": {
+      "package": "com.karnasetu.app",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": ["expo-router", "expo-image-picker", "expo-location"],
+    "extra": {
+      "router": { "origin": false }
+    }
+  }
+}
