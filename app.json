@@ -16,11 +16,21 @@
     },
     "android": {
       "package": "com.karnasetu.app",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
-    "plugins": ["expo-router", "expo-image-picker", "expo-location"],
+    "plugins": [
+      "expo-router",
+      "expo-image-picker",
+      "expo-location",
+      "@react-native-community/datetimepicker"
+    ],
     "extra": {
-      "router": { "origin": false }
+      "router": {
+        "origin": false
+      }
     }
   }
 }

@@ -100,3 +100,24 @@ export interface BookDonation {
   requested_by: string | null;
   created_at: string;
 }
+
+export interface VolunteerRequest {
+  id: string;
+  ngo_id: string;
+  title: string;
+  description: string | null;
+  slots_needed: number;
+  event_date: string | null;
+  interested_users: string[];
+  created_at: string;
+}
+
+export interface AppNotification {
+  id: string;
+  recipient_id: string;
+  type: string;
+  ref_id: string | null;
+  message: string | null;
+  read_status: boolean;
+  created_at: string;
+}

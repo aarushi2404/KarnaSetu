@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert } 
 import { useFocusEffect } from "expo-router";
 import { supabase, Post, Ngo } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import BottomNav from "@/components/BottomNav";
 
 export default function NgoDashboard() {
   const { profile, signOut } = useAuth();
@@ -89,6 +90,7 @@ export default function NgoDashboard() {
 
       <Text style={styles.sectionTitle}>Nearby Stray / Found Reports</Text>
       <FlatList
+        style={{ flex: 1 }}
         data={strayPosts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, gap: 10 }}
@@ -101,6 +103,7 @@ export default function NgoDashboard() {
           </View>
         )}
       />
+      <BottomNav variant="ngo" />
     </View>
   );
 }

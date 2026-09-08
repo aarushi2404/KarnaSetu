@@ -201,6 +201,12 @@ create policy "volunteer: ngo manages own" on volunteer_requests
     exists (select 1 from ngos n where n.id = volunteer_requests.ngo_id and n.profile_id = auth.uid())
     or is_admin()
   );
+-- Any signed-in user can update a request to add/remove themselves from
+-- interested_users (the app only ever mutates that one column from this path;
+-- for a stricter guarantee, move this to a Postgres function that only touches
+-- interested_users rather than a blanket UPDATE policy).
+create policy "volunteer: users toggle their own interest" on volunteer_requests
+  for update using (auth.uid() is not null);
 
 -- ---------- food_listings ----------
 create policy "food: read all" on food_listings for select using (auth.uid() is not null);
@@ -223,8 +229,13 @@ create policy "books: owner or requester or admin updates" on book_donations
 -- ---------- notifications ----------
 create policy "notifications: read own" on notifications
   for select using (recipient_id = auth.uid() or is_admin());
-create policy "notifications: insert via service role only"
-  on notifications for insert with check (true); -- tighten to service_role in production
+create policy "notifications: recipient marks own as read" on notifications
+  for update using (recipient_id = auth.uid());
+-- Inserts happen from the notify-nearby-shelters Edge Function using the
+-- service role key, which bypasses RLS entirely — no insert policy is needed
+-- for that path. This policy only covers any future client-side insert case.
+create policy "notifications: insert own as recipient" on notifications
+  for insert with check (recipient_id = auth.uid());
 
 -- ============================================================
 -- STORAGE (run in Studio → Storage, or via the dashboard UI)

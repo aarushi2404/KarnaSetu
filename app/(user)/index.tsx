@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } fr
 import { useFocusEffect, useRouter } from "expo-router";
 import { supabase, Post } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import BottomNav from "@/components/BottomNav";
 
 export default function UserFeed() {
   const { profile, signOut } = useAuth();
@@ -50,6 +51,7 @@ export default function UserFeed() {
       </View>
 
       <FlatList
+        style={{ flex: 1 }}
         data={posts}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -64,6 +66,7 @@ export default function UserFeed() {
           </View>
         )}
       />
+      <BottomNav variant="user" />
     </View>
   );
 }
