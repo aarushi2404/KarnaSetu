@@ -10,6 +10,8 @@ export default function UserLayout() {
       <Stack.Screen name="books" />
       <Stack.Screen name="volunteer" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="messages" />
+      <Stack.Screen name="chat" />
     </Stack>
   );
 }

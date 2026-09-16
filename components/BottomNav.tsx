@@ -15,6 +15,7 @@ const USER_TABS: Tab[] = [
   { label: "Food", icon: "🍲", path: "/(user)/food" },
   { label: "Books", icon: "📚", path: "/(user)/books" },
   { label: "Volunteer", icon: "🤝", path: "/(user)/volunteer" },
+  { label: "Chat", icon: "💬", path: "/(user)/messages" },
   { label: "Alerts", icon: "🔔", path: "/(user)/notifications" },
 ];
 
@@ -23,6 +24,7 @@ const NGO_TABS: Tab[] = [
   { label: "Food", icon: "🍲", path: "/(ngo)/food" },
   { label: "Books", icon: "📚", path: "/(ngo)/books" },
   { label: "Volunteer", icon: "🤝", path: "/(ngo)/volunteer" },
+  { label: "Chat", icon: "💬", path: "/(ngo)/messages" },
   { label: "Alerts", icon: "🔔", path: "/(ngo)/notifications" },
 ];
 

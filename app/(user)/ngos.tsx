@@ -18,8 +18,6 @@ export default function BrowseNgos() {
       .then(({ data }) => setNgos((data as unknown as Ngo[]) ?? []));
   }, []);
 
-  // Donation flow: creates a "pending" donation row, then would hand off to Razorpay
-  // checkout (test mode) in a real build — see README "Payments" section.
   const donate = async (ngoId: string) => {
     const amount = Number(amounts[ngoId] ?? 0);
     if (!amount || amount <= 0) return Alert.alert("Enter an amount", "Enter a donation amount first.");
@@ -32,6 +30,29 @@ export default function BrowseNgos() {
     if (error) return Alert.alert("Could not donate", error.message);
     Alert.alert("Thank you!", "Your donation was recorded (test mode). Razorpay checkout hooks in here.");
     setAmounts((a) => ({ ...a, [ngoId]: "" }));
+  };
+
+  // Find-or-create the conversation, then navigate into it.
+  const openChat = async (ngo: Ngo) => {
+    if (!profile) return;
+    const { data: existing } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("ngo_id", ngo.id)
+      .maybeSingle();
+
+    let conversationId = existing?.id as string | undefined;
+    if (!conversationId) {
+      const { data: created, error } = await supabase
+        .from("conversations")
+        .insert({ user_id: profile.id, ngo_id: ngo.id })
+        .select("id")
+        .single();
+      if (error) return Alert.alert("Could not start chat", error.message);
+      conversationId = created.id;
+    }
+    router.push({ pathname: "/(user)/chat", params: { conversationId, peerName: ngo.org_name } });
   };
 
   return (
@@ -49,7 +70,12 @@ export default function BrowseNgos() {
         ListEmptyComponent={<Text style={styles.empty}>No verified NGOs yet.</Text>}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>{item.org_name}</Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <Text style={styles.cardTitle}>{item.org_name}</Text>
+              <TouchableOpacity onPress={() => openChat(item)}>
+                <Text style={styles.messageLink}>💬 Message</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.cardMeta}>{item.category} {item.city ? `· ${item.city}` : ""}</Text>
             {!!item.description && <Text style={styles.cardDesc}>{item.description}</Text>}
             <View style={styles.donateRow}>
@@ -81,6 +107,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: "700" },
   cardMeta: { color: "#888", fontSize: 12, marginTop: 2 },
   cardDesc: { color: "#555", marginTop: 6 },
+  messageLink: { color: "#2563EB", fontWeight: "600", fontSize: 13 },
   donateRow: { flexDirection: "row", gap: 8, marginTop: 10 },
   amountInput: { flex: 1, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10 },
   donateBtn: { backgroundColor: "#E85D2C", borderRadius: 8, paddingHorizontal: 16, justifyContent: "center" },

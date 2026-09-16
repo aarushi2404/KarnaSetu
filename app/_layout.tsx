@@ -20,6 +20,7 @@ function RootNavigation() {
     if (session && profile && inAuthGroup) {
       if (profile.role === "admin") router.replace("/(admin)");
       else if (profile.role === "ngo") router.replace("/(ngo)");
+      else if (profile.role === "company") router.replace("/(company)");
       else router.replace("/(user)");
     }
   }, [session, profile, loading, segments]);
@@ -38,6 +39,7 @@ function RootNavigation() {
       <Stack.Screen name="(user)" />
       <Stack.Screen name="(ngo)" />
       <Stack.Screen name="(admin)" />
+      <Stack.Screen name="(company)" /> 
     </Stack>
   );
 }

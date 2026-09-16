@@ -8,6 +8,8 @@ export default function NgoLayout() {
       <Stack.Screen name="books" />
       <Stack.Screen name="volunteer" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="messages" />
+      <Stack.Screen name="chat" />
     </Stack>
   );
 }

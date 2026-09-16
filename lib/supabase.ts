@@ -22,7 +22,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // ---- Shared types matching supabase/schema.sql ----
 
-export type UserRole = "user" | "ngo" | "admin";
+export type UserRole = "user" | "ngo" | "admin"| "company";
 export type VerificationStatus = "pending_verification" | "approved" | "rejected";
 
 export interface Profile {
@@ -32,6 +32,7 @@ export interface Profile {
   phone: string | null;
   city: string | null;
   verification_status: VerificationStatus;
+  account_status: AccountStatus;   // ← add this line
   created_at: string;
 }
 
@@ -119,5 +120,46 @@ export interface AppNotification {
   ref_id: string | null;
   message: string | null;
   read_status: boolean;
+  created_at: string;
+}
+
+export type AccountStatus = "active" | "suspended" | "flagged";
+
+export interface AuditLog {
+  id: string;
+  admin_id: string;
+  action: string;
+  target_type: "ngo" | "user";
+  target_id: string;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  user_id: string;
+  ngo_id: string;
+  created_at: string;
+  last_message_at: string;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface CsrEngagement {
+  id: string;
+  company_id: string;
+  ngo_id: string;
+  engagement_type: "donation" | "volunteer_hours" | "food_drive" | "other";
+  amount: number | null;
+  hours: number | null;
+  description: string | null;
+  engagement_date: string;
   created_at: string;
 }

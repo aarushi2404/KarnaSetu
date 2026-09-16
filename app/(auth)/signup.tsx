@@ -12,7 +12,7 @@ import { Link, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "@/lib/supabase";
 
-type Role = "user" | "ngo";
+type Role = "user" | "ngo" | "company";
 
 export default function Signup() {
   const router = useRouter();
@@ -91,6 +91,9 @@ export default function Signup() {
       }
 
       // 2. Create/update profile
+      // Note: for role === "company", full_name doubles as the company's
+      // display name (see supabase/migration_05_csr_company.sql) — no
+      // separate companies table for now.
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: userId,
         role,
@@ -143,6 +146,8 @@ export default function Signup() {
         "Account created",
         role === "ngo"
           ? "Your NGO account is pending admin verification."
+          : role === "company"
+          ? "Welcome! You can start logging CSR engagements right away."
           : "Welcome to कर्णSetu!"
       );
 
@@ -170,7 +175,7 @@ export default function Signup() {
 
       {/* ROLE SELECTION */}
       <View style={styles.roleRow}>
-        {(["user", "ngo"] as Role[]).map((r) => (
+        {(["user", "ngo", "company"] as Role[]).map((r) => (
           <TouchableOpacity
             key={r}
             style={[
@@ -188,7 +193,9 @@ export default function Signup() {
             >
               {r === "user"
                 ? "Individual / Business"
-                : "NGO / Shelter"}
+                : r === "ngo"
+                ? "NGO / Shelter"
+                : "Company (CSR)"}
             </Text>
           </TouchableOpacity>
         ))}
@@ -197,7 +204,7 @@ export default function Signup() {
       {/* NAME */}
       <TextInput
         style={styles.input}
-        placeholder="Full name"
+        placeholder={role === "company" ? "Company name" : "Full name"}
         placeholderTextColor="#888"
         value={fullName}
         onChangeText={setFullName}
@@ -330,7 +337,7 @@ const styles = StyleSheet.create({
   roleRow: {
     flexDirection: "row",
     marginBottom: 16,
-    gap: 8,
+    gap: 6,
   },
 
   roleChip: {
@@ -339,6 +346,7 @@ const styles = StyleSheet.create({
     borderColor: "#E85D2C",
     borderRadius: 20,
     paddingVertical: 10,
+    paddingHorizontal: 4,
     alignItems: "center",
   },
 
@@ -349,11 +357,15 @@ const styles = StyleSheet.create({
   roleText: {
     color: "#E85D2C",
     fontWeight: "600",
+    fontSize: 12,
+    textAlign: "center",
   },
 
   roleTextActive: {
     color: "#fff",
     fontWeight: "600",
+    fontSize: 12,
+    textAlign: "center",
   },
 
   input: {

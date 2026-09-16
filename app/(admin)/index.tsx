@@ -1,24 +1,45 @@
 import { useCallback, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Linking, Alert } from "react-native";
-import { useFocusEffect } from "expo-router";
-import { supabase, Ngo } from "@/lib/supabase";
+import { useFocusEffect, useRouter } from "expo-router";
+import { supabase, Ngo, Profile, AccountStatus } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { logAdminAction } from "@/lib/audit";
 
 interface PendingNgo extends Ngo {
   profiles: { full_name: string; verification_status: string } | null;
 }
 
+interface NgoRow extends Ngo {
+  profiles: { id: string; full_name: string; account_status: AccountStatus } | null;
+}
+
 export default function AdminDashboard() {
-  const { signOut } = useAuth();
+  const { profile, signOut } = useAuth();
+  const router = useRouter();
   const [pending, setPending] = useState<PendingNgo[]>([]);
+  const [allNgos, setAllNgos] = useState<NgoRow[]>([]);
+  const [allUsers, setAllUsers] = useState<Profile[]>([]);
   const [stats, setStats] = useState({ ngos: 0, users: 0, posts: 0, donations: 0 });
 
   const load = async () => {
-    const { data } = await supabase
+    const { data: pendingData } = await supabase
       .from("ngos")
       .select("*, profiles!inner(full_name, verification_status)")
       .eq("profiles.verification_status", "pending_verification");
-    setPending((data as unknown as PendingNgo[]) ?? []);
+    setPending((pendingData as unknown as PendingNgo[]) ?? []);
+
+    const { data: ngoData } = await supabase
+      .from("ngos")
+      .select("*, profiles!inner(id, full_name, account_status)")
+      .order("org_name");
+    setAllNgos((ngoData as unknown as NgoRow[]) ?? []);
+
+    const { data: userData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("role", "user")
+      .order("full_name");
+    setAllUsers((userData as Profile[]) ?? []);
 
     const [{ count: ngoCount }, { count: userCount }, { count: postCount }, { count: donationCount }] =
       await Promise.all([
@@ -47,16 +68,79 @@ export default function AdminDashboard() {
       .update({ verification_status: decision })
       .eq("id", ngoRow.profile_id);
     if (error) return Alert.alert("Error", error.message);
+    if (profile) {
+      await logAdminAction(
+        profile.id,
+        decision === "approved" ? "approve_ngo" : "reject_ngo",
+        "ngo",
+        ngoRow.profile_id
+      );
+    }
     load();
+  };
+
+  const setAccountStatus = (
+    targetProfileId: string,
+    targetType: "ngo" | "user",
+    newStatus: AccountStatus,
+    action: "suspend_account" | "flag_account" | "reactivate_account"
+  ) => {
+    Alert.prompt?.(
+      newStatus === "active" ? "Reactivate account" : `${action === "flag_account" ? "Flag" : "Suspend"} account`,
+      "Optional reason (shown only in the audit log):",
+      async (reason?: string) => {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ account_status: newStatus })
+          .eq("id", targetProfileId);
+        if (error) return Alert.alert("Error", error.message);
+        if (profile) await logAdminAction(profile.id, action, targetType, targetProfileId, reason);
+        load();
+      }
+    ) ?? applyStatusFallback(targetProfileId, targetType, newStatus, action);
+  };
+
+  // Alert.prompt is iOS-only; fall back to a plain confirm on Android/web.
+  const applyStatusFallback = (
+    targetProfileId: string,
+    targetType: "ngo" | "user",
+    newStatus: AccountStatus,
+    action: "suspend_account" | "flag_account" | "reactivate_account"
+  ) => {
+    Alert.alert(
+      newStatus === "active" ? "Reactivate account?" : action === "flag_account" ? "Flag account?" : "Suspend account?",
+      undefined,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          style: newStatus === "active" ? "default" : "destructive",
+          onPress: async () => {
+            const { error } = await supabase
+              .from("profiles")
+              .update({ account_status: newStatus })
+              .eq("id", targetProfileId);
+            if (error) return Alert.alert("Error", error.message);
+            if (profile) await logAdminAction(profile.id, action, targetType, targetProfileId);
+            load();
+          },
+        },
+      ]
+    );
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Admin</Text>
-        <TouchableOpacity onPress={signOut}>
-          <Text style={styles.signOut}>Sign out</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
+          <TouchableOpacity onPress={() => router.push("/(admin)/audit-log")}>
+            <Text style={styles.link}>Audit log</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={signOut}>
+            <Text style={styles.signOut}>Sign out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.statsRow}>
@@ -66,29 +150,58 @@ export default function AdminDashboard() {
         <Stat label="Donations" value={stats.donations} />
       </View>
 
-      <Text style={styles.sectionTitle}>Pending NGO Approvals</Text>
       <FlatList
-        data={pending}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16, gap: 12 }}
-        ListEmptyComponent={<Text style={styles.empty}>Nothing pending. 🎉</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{item.org_name}</Text>
-            <Text style={styles.cardMeta}>{item.category} · {item.profiles?.full_name}</Text>
-            {!!item.registration_doc_url && (
-              <TouchableOpacity onPress={() => Linking.openURL(item.registration_doc_url!)}>
-                <Text style={styles.docLink}>View registration document</Text>
-              </TouchableOpacity>
-            )}
-            <View style={styles.actionsRow}>
-              <TouchableOpacity style={styles.approveBtn} onPress={() => decide(item, "approved")}>
-                <Text style={styles.actionText}>Approve</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.rejectBtn} onPress={() => decide(item, "rejected")}>
-                <Text style={styles.actionText}>Reject</Text>
-              </TouchableOpacity>
-            </View>
+        data={[{ key: "content" }]}
+        keyExtractor={(i) => i.key}
+        renderItem={() => (
+          <View style={{ padding: 16, gap: 12 }}>
+            <Text style={styles.sectionTitle}>Pending NGO Approvals</Text>
+            {pending.length === 0 && <Text style={styles.empty}>Nothing pending. 🎉</Text>}
+            {pending.map((item) => (
+              <View key={item.id} style={styles.card}>
+                <Text style={styles.cardTitle}>{item.org_name}</Text>
+                <Text style={styles.cardMeta}>{item.category} · {item.profiles?.full_name}</Text>
+                {!!item.registration_doc_url && (
+                  <TouchableOpacity onPress={() => Linking.openURL(item.registration_doc_url!)}>
+                    <Text style={styles.docLink}>View registration document</Text>
+                  </TouchableOpacity>
+                )}
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => decide(item, "approved")}>
+                    <Text style={styles.actionText}>Approve</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.rejectBtn} onPress={() => decide(item, "rejected")}>
+                    <Text style={styles.actionText}>Reject</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+
+            <Text style={styles.sectionTitle}>All NGOs</Text>
+            {allNgos.map((item) => (
+              <ModerationRow
+                key={item.id}
+                title={item.org_name}
+                meta={item.category}
+                status={item.profiles?.account_status ?? "active"}
+                onSuspend={() => setAccountStatus(item.profile_id, "ngo", "suspended", "suspend_account")}
+                onFlag={() => setAccountStatus(item.profile_id, "ngo", "flagged", "flag_account")}
+                onReactivate={() => setAccountStatus(item.profile_id, "ngo", "active", "reactivate_account")}
+              />
+            ))}
+
+            <Text style={styles.sectionTitle}>All Users</Text>
+            {allUsers.map((item) => (
+              <ModerationRow
+                key={item.id}
+                title={item.full_name}
+                meta={item.city ?? ""}
+                status={item.account_status}
+                onSuspend={() => setAccountStatus(item.id, "user", "suspended", "suspend_account")}
+                onFlag={() => setAccountStatus(item.id, "user", "flagged", "flag_account")}
+                onReactivate={() => setAccountStatus(item.id, "user", "active", "reactivate_account")}
+              />
+            ))}
           </View>
         )}
       />
@@ -105,6 +218,41 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
+function ModerationRow({
+  title, meta, status, onSuspend, onFlag, onReactivate,
+}: {
+  title: string; meta: string; status: AccountStatus;
+  onSuspend: () => void; onFlag: () => void; onReactivate: () => void;
+}) {
+  return (
+    <View style={styles.card}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <View>
+          <Text style={styles.cardTitle}>{title}</Text>
+          {!!meta && <Text style={styles.cardMeta}>{meta}</Text>}
+        </View>
+        <Text style={[styles.badge, status !== "active" && styles.badgeWarn]}>{status}</Text>
+      </View>
+      <View style={styles.actionsRow}>
+        {status === "active" ? (
+          <>
+            <TouchableOpacity style={styles.flagBtn} onPress={onFlag}>
+              <Text style={styles.actionText}>Flag</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.rejectBtn} onPress={onSuspend}>
+              <Text style={styles.actionText}>Suspend</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={styles.approveBtn} onPress={onReactivate}>
+            <Text style={styles.actionText}>Reactivate</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF8F3" },
   header: {
@@ -115,13 +263,14 @@ const styles = StyleSheet.create({
     paddingTop: 56,
   },
   title: { fontSize: 20, fontWeight: "700" },
+  link: { color: "#2563EB", fontWeight: "600" },
   signOut: { color: "#E85D2C" },
   statsRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8, marginBottom: 8 },
   stat: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 12, alignItems: "center" },
   statValue: { fontSize: 20, fontWeight: "800", color: "#E85D2C" },
   statLabel: { fontSize: 11, color: "#888" },
-  sectionTitle: { fontWeight: "700", paddingHorizontal: 16, marginTop: 8 },
-  empty: { textAlign: "center", color: "#888", marginTop: 20 },
+  sectionTitle: { fontWeight: "700", marginTop: 8 },
+  empty: { textAlign: "center", color: "#888", marginTop: 8 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 14 },
   cardTitle: { fontSize: 16, fontWeight: "700" },
   cardMeta: { color: "#888", fontSize: 12, marginTop: 2 },
@@ -129,5 +278,12 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: "row", gap: 8, marginTop: 12 },
   approveBtn: { backgroundColor: "#15803D", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
   rejectBtn: { backgroundColor: "#B91C1C", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+  flagBtn: { backgroundColor: "#B45309", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
   actionText: { color: "#fff", fontWeight: "700" },
+  badge: {
+    fontSize: 11, fontWeight: "700", color: "#15803D",
+    backgroundColor: "#DCFCE7", borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8,
+    textTransform: "uppercase",
+  },
+  badgeWarn: { color: "#B91C1C", backgroundColor: "#FEE2E2" },
 });
