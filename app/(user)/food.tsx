@@ -46,6 +46,10 @@ export default function FoodBoard() {
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
+    // Server-side sweep: flip any listing whose pickup window has passed to
+    // 'expired' before reading the board (see migration_06_food_expiry.sql).
+    await supabase.rpc("expire_food_listings");
+
     const { data, error } = await supabase
       .from("food_listings")
       .select("*")

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { supabase } from "@/lib/supabase";
 
 type Role = "user" | "ngo" | "company";
@@ -110,6 +111,24 @@ export default function Signup() {
       if (role === "ngo") {
         let docUrl: string | null = null;
 
+        // Capture the shelter's coordinates so stray/found reports can be
+        // matched to it by real distance (see migration_09_geo_radius.sql)
+        // instead of only by city name. Never blocks signup if denied.
+        let latitude: number | null = null;
+        let longitude: number | null = null;
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === "granted") {
+            const pos = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            latitude = pos.coords.latitude;
+            longitude = pos.coords.longitude;
+          }
+        } catch {
+          // Location unavailable — the NGO can still be matched by city.
+        }
+
         if (docUri) {
           const fileExt = docUri.split(".").pop() || "jpg";
           const filePath = `${userId}/registration.${fileExt}`;
@@ -137,6 +156,8 @@ export default function Signup() {
           category: category.trim(),
           city: city.trim() || null,
           registration_doc_url: docUrl,
+          latitude,
+          longitude,
         });
 
         if (ngoError) throw ngoError;

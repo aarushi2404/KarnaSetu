@@ -44,6 +44,8 @@ export interface Ngo {
   description: string | null;
   city: string | null;
   registration_doc_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
 }
 
@@ -57,6 +59,8 @@ export interface Post {
   description: string | null;
   photo_url: string | null;
   city: string | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
 }
 
@@ -150,6 +154,51 @@ export interface Message {
   body: string;
   created_at: string;
   read_at: string | null;
+}
+
+export type NgoResourceCategory = "food" | "medical" | "clothing" | "other";
+
+export interface NgoResource {
+  id: string;
+  ngo_id: string;
+  category: NgoResourceCategory;
+  name: string;
+  unit: string;
+  quantity: number;
+  low_stock_threshold: number;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface NgoResourceTransaction {
+  id: string;
+  resource_id: string;
+  ngo_id: string;
+  change_amount: number;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface NgoRating {
+  id: string;
+  ngo_id: string;
+  user_id: string;
+  rating: number;
+  review: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NgoRatingSummary {
+  ngo_id: string;
+  total_ratings: number;
+  average_rating: number | null;
+  star_5: number;
+  star_4: number;
+  star_3: number;
+  star_2: number;
+  star_1: number;
 }
 
 export interface CsrEngagement {

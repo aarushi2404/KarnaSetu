@@ -26,6 +26,11 @@ export default function NgoFoodBoard() {
   const load = async () => {
     if (!profile) return;
 
+    // Server-side sweep: flip any listing whose pickup window has passed to
+    // 'expired' before we read the board, so expiry isn't just a frontend
+    // display computation (see migration_06_food_expiry.sql).
+    await supabase.rpc("expire_food_listings");
+
     const { data: ngoData, error: ngoError } = await supabase
       .from("ngos")
       .select("*")
@@ -104,15 +109,14 @@ export default function NgoFoodBoard() {
       );
     }
 
-    const { data, error } = await supabase
-      .from("food_listings")
-      .update({
-        status: "claimed",
-        claimed_by_ngo_id: ngo.id,
-      })
-      .eq("id", listing.id)
-      .eq("status", "open")
-      .select();
+    // Atomic, DB-side claim: claim_food_listing() only succeeds if the
+    // listing is still 'open' and not past pickup_by, and verifies the
+    // caller owns the NGO — so two NGOs racing to claim the same listing
+    // can never both succeed (see migration_06_food_expiry.sql).
+    const { data, error } = await supabase.rpc("claim_food_listing", {
+      p_listing_id: listing.id,
+      p_ngo_id: ngo.id,
+    });
 
     if (error) {
       return Alert.alert("Could not claim", error.message);
@@ -121,7 +125,7 @@ export default function NgoFoodBoard() {
     if (!data || data.length === 0) {
       return Alert.alert(
         "Could not claim",
-        "This listing may already be claimed."
+        "This listing may already be claimed or has expired."
       );
     }
 

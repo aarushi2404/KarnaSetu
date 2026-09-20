@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import * as Location from "expo-location";
 import { supabase, PostType } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 
@@ -23,18 +24,45 @@ export default function CreatePost() {
   const submit = async () => {
     if (!title) return Alert.alert("Missing info", "Add a title for your post.");
     setBusy(true);
+
+    // For stray/found reports, try to attach real coordinates so nearby
+    // shelters can be matched by actual distance rather than city name.
+    // This never blocks posting — if permission is denied or location is
+    // unavailable, the post still goes through with city-only matching.
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+
+    if (type === "stray_found") {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          latitude = pos.coords.latitude;
+          longitude = pos.coords.longitude;
+        }
+      } catch {
+        // Location unavailable — proceed without coordinates.
+      }
+    }
+
     const { error } = await supabase.from("posts").insert({
       author_id: profile?.id,
       type,
       title,
       description,
       city,
+      latitude,
+      longitude,
     });
     setBusy(false);
     if (error) return Alert.alert("Could not post", error.message);
     // If it's a stray/found post, notify nearby shelters via an Edge Function (see supabase/functions)
     if (type === "stray_found") {
-      supabase.functions.invoke("notify-nearby-shelters", { body: { city } }).catch(() => {});
+      supabase.functions
+        .invoke("notify-nearby-shelters", { body: { city, latitude, longitude } })
+        .catch(() => {});
     }
     router.back();
   };

@@ -1,13 +1,15 @@
 import { useCallback, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert } from "react-native";
-import { useFocusEffect } from "expo-router";
-import { supabase, Post, Ngo } from "@/lib/supabase";
+import { useFocusEffect, useRouter } from "expo-router";
+import { supabase, Post, Ngo, NgoRatingSummary } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import BottomNav from "@/components/BottomNav";
 
 export default function NgoDashboard() {
   const { profile, signOut } = useAuth();
+  const router = useRouter();
   const [ngo, setNgo] = useState<Ngo | null>(null);
+  const [ratingSummary, setRatingSummary] = useState<NgoRatingSummary | null>(null);
   const [strayPosts, setStrayPosts] = useState<Post[]>([]);
   const [needTitle, setNeedTitle] = useState("");
   const [needDesc, setNeedDesc] = useState("");
@@ -21,6 +23,15 @@ export default function NgoDashboard() {
       .eq("profile_id", profile.id)
       .single();
     setNgo(ngoData as Ngo);
+
+    if (ngoData) {
+      const { data: summary } = await supabase
+        .from("ngo_rating_summary")
+        .select("*")
+        .eq("ngo_id", (ngoData as Ngo).id)
+        .maybeSingle();
+      setRatingSummary((summary as NgoRatingSummary) ?? null);
+    }
 
     const { data: posts } = await supabase
       .from("posts")
@@ -73,6 +84,28 @@ export default function NgoDashboard() {
       </View>
       {statusBanner()}
 
+      {ratingSummary && ratingSummary.total_ratings > 0 && (
+        <Text style={styles.ratingLine}>
+          ★ {ratingSummary.average_rating?.toFixed(1)} · {ratingSummary.total_ratings} review
+          {ratingSummary.total_ratings === 1 ? "" : "s"}
+        </Text>
+      )}
+
+      <View style={styles.toolsRow}>
+        <TouchableOpacity style={styles.toolBtn} onPress={() => router.push("/(ngo)/funds" as any)}>
+          <Text style={styles.toolIcon}>💰</Text>
+          <Text style={styles.toolLabel}>Fund Tracker</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toolBtn} onPress={() => router.push("/(ngo)/inventory" as any)}>
+          <Text style={styles.toolIcon}>📦</Text>
+          <Text style={styles.toolLabel}>Inventory</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.toolBtn} onPress={() => router.push("/(ngo)/food" as any)}>
+          <Text style={styles.toolIcon}>🍲</Text>
+          <Text style={styles.toolLabel}>Food Board</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.postBox}>
         <Text style={styles.sectionTitle}>Post a Need / Announcement</Text>
         <TextInput style={styles.input} placeholder="Title" value={needTitle} onChangeText={setNeedTitle} />
@@ -122,6 +155,19 @@ const styles = StyleSheet.create({
   pending: { color: "#B45309", paddingHorizontal: 16, marginBottom: 8 },
   rejected: { color: "#B91C1C", paddingHorizontal: 16, marginBottom: 8 },
   approved: { color: "#15803D", paddingHorizontal: 16, marginBottom: 8, fontWeight: "600" },
+  ratingLine: { color: "#B45309", paddingHorizontal: 16, marginBottom: 8, fontWeight: "600" },
+  toolsRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 8 },
+  toolBtn: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F0D6C8",
+  },
+  toolIcon: { fontSize: 20, marginBottom: 4 },
+  toolLabel: { fontSize: 12, fontWeight: "700", color: "#111" },
   postBox: { backgroundColor: "#fff", margin: 16, padding: 14, borderRadius: 12 },
   sectionTitle: { fontWeight: "700", marginBottom: 8, paddingHorizontal: 16 },
   input: {
