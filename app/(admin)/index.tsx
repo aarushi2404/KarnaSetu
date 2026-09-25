@@ -134,9 +134,6 @@ export default function AdminDashboard() {
       <View style={styles.header}>
         <Text style={styles.title}>Admin</Text>
         <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
-          <TouchableOpacity onPress={() => router.push("/(admin)/audit-log")}>
-            <Text style={styles.link}>Audit log</Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={signOut}>
             <Text style={styles.signOut}>Sign out</Text>
           </TouchableOpacity>
@@ -263,7 +260,6 @@ const styles = StyleSheet.create({
     paddingTop: 56,
   },
   title: { fontSize: 20, fontWeight: "700" },
-  link: { color: "#2563EB", fontWeight: "600" },
   signOut: { color: "#E85D2C" },
   statsRow: { flexDirection: "row", paddingHorizontal: 16, gap: 8, marginBottom: 8 },
   stat: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 12, alignItems: "center" },
