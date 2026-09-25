@@ -100,10 +100,6 @@ export default function NgoDashboard() {
           <Text style={styles.toolIcon}>📦</Text>
           <Text style={styles.toolLabel}>Inventory</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.toolBtn} onPress={() => router.push("/(ngo)/food" as any)}>
-          <Text style={styles.toolIcon}>🍲</Text>
-          <Text style={styles.toolLabel}>Food Board</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.postBox}>

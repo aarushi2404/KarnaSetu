@@ -111,22 +111,27 @@ export default function Signup() {
       if (role === "ngo") {
         let docUrl: string | null = null;
 
-        // Capture the shelter's coordinates so stray/found reports can be
-        // matched to it by real distance (see migration_09_geo_radius.sql)
-        // instead of only by city name. Never blocks signup if denied.
+        // The NGO's official location must be the address they entered on
+        // this form (the City field), not wherever their device happens to
+        // be when they sign up — so this forward-geocodes the typed city
+        // into coordinates rather than reading live device GPS. It's
+        // captured once here and stored on the `ngos` row, so it stays
+        // fixed even if the NGO user's device later moves (see
+        // migration_09_geo_radius.sql for how it's used in matching).
         let latitude: number | null = null;
         let longitude: number | null = null;
         try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status === "granted") {
-            const pos = await Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Balanced,
-            });
-            latitude = pos.coords.latitude;
-            longitude = pos.coords.longitude;
+          if (city.trim()) {
+            const results = await Location.geocodeAsync(city.trim());
+            if (results.length > 0) {
+              latitude = results[0].latitude;
+              longitude = results[0].longitude;
+            }
           }
         } catch {
-          // Location unavailable — the NGO can still be matched by city.
+          // Geocoding unavailable — the NGO can still be matched by city
+          // string until coordinates are added (e.g. via an admin/profile
+          // edit flow).
         }
 
         if (docUri) {
