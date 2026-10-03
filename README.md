@@ -145,7 +145,7 @@ karnasetu/
 └── .env.example
 ```
 
-## 7. What's stubbed vs. fully wired (be upfront about this in your demo)
+## 7. What's stubbed vs. fully wired 
 
 | Feature | Status |
 |---|---|
